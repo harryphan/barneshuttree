@@ -57,7 +57,10 @@ define([],function () {
 		add(testPoint);
 		console.log(t);
 	}
-	function TreeNode(min,max){
+	function saveNode(n){
+        nodes.push(n);
+    }
+    function TreeNode(min,max){
         var children = [null,null,null,null,null,null,null,null];
         var leaf = true;
         var box={min:min,max:max};
@@ -65,31 +68,28 @@ define([],function () {
         var centerOfMass=null;
         var mass=0;
         var width=Math.abs(min.x-max.x);
-        function addChild(point){
+        function addChild(point,id){
+
             var quadrant=getQuadrant(point,box);
             var child=children[quadrant];
             if(child){
                 if(child.leaf){
                     var node=new TreeNode(child.box.min,child.box.max);
                     node.leaf=false;
-                    var c1=node.addChild(point);
-                    var c2=node.addChild(child.point);
+                    var c1=node.addChild(point,id);
+                    var c2=node.addChild(child.point,child.id);
                     this.mass+=c1.mass;
-                    //this.mass+=c1.mass;
-                    //this.mass+=c1.mass;
-//                    node.centerOfMass={x:(c1.point.x*c1.mass + c2.point.x*c2.mass)/(c1.mass+c2.mass),y:(c1.point.y*c1.mass + c2.point.y*c2.mass)/(c1.mass+c2.mass),z:(c1.point.z*c1.mass + c2.point.z*c2.mass)/(c1.mass+c2.mass)}
-//                    node.mass=c1.mass+c2.mass;
                     children[quadrant]=node;
                 }else{
                     var before=child.mass;
-                    child.addChild(point);
+                    child.addChild(point,id);
                     this.mass+=child.mass-before;
                 }
 
             }else{
-                child=createChild(point, quadrant,box);
+                child=createChild(point, quadrant,box,id);
                 children[quadrant]=child;
-                leaf=false;
+                this.leaf=false;
                 this.mass+=child.mass;
             }
             if(this.centerOfMass){
@@ -104,7 +104,7 @@ define([],function () {
 
             return children[quadrant];
         }
-        function createChild(point,quadrant,bbox){
+        function createChild(point,quadrant,bbox,id){
             var center = {
                 x:(bbox.min.x + bbox.max.x)/2.0,
                 y:(bbox.min.y + bbox.max.y)/2.0,
@@ -133,7 +133,7 @@ define([],function () {
                     break;
                 case 5:
                     max=center;
-                    min={x:bbox.min.x,y:bbox.max.y,z:bbox.min.z}
+                    min={x:bbox.min.x,y:bbox.max.y,z:bbox.min.z};
                     break;
                 case 6:
                     max=center;
@@ -141,13 +141,14 @@ define([],function () {
                     break;
                 default:
                     max=center;
-                    min={x:bbox.max.x,y:bbox.min.y,z:bbox.min.z}
+                    min={x:bbox.max.x,y:bbox.min.y,z:bbox.min.z};
                     break;
             }
             var child=new TreeNode(min,max);
             child.point=point;
             child.centerOfMass=point;
             child.mass=1;
+            child.id=id;
             saveNode(child);
             return child;
         }
@@ -207,8 +208,8 @@ define([],function () {
     function init(min,max){
         bhRoot=new TreeNode(min,max);
     }
-    function add(point){
-        bhRoot.addChild(point);
+    function add(point,id){
+        bhRoot.addChild(point,id);
     }
     function clear(){
         bhRoot={};
