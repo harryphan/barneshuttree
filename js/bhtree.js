@@ -224,6 +224,56 @@ define([],function () {
     function getNodes(){
         return nodes;
     }
+    function g(){
+    	for(var i in nodes) {
+            var node=nodes[i];
+            function doForce(n, node) {
+                if (n.leaf && n.id != node.id) {
+                    var distance = node.obj.position.distanceTo(new THREE.Vector3(n.point.x, n.point.y, n.point.z));
+                    doGravity(node, {obj: {position: n.point},mass: n.mass});
+                } else {
+                    var distance = node.obj.position.distanceTo(new THREE.Vector3(n.point.x, n.point.y, n.point.z));
+                    var theta = n.width / distance;
+                    if (theta < .5) {
+                        doGravity(node, {obj: {position: n.centerOfMass},mass: n.mass});
+                    } else {
+                        for (var j in n.children) {
+                            if (n.children[j]) {
+                                doForce(n.children[j], node);
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (bhtree.bhRoot()) {
+                doForce(bhtree.bhRoot(), node);
+            }
+        }
+
+        function doGravity(currentNode, otherNode) {
+            var G=100;
+            var frame=100000000;
+            sc.subVectors(currentNode.obj.position, otherNode.obj.position);
+            var len = sc.length();
+            var acc= (otherNode.mass * G) / (len * len);
+            //currentNode.speed.addScalar(acc);
+            sc.multiplyScalar((otherNode.mass * G) / (len * len));
+            //sc.addScalar(3);
+
+
+//            momentum.multiplyScalar(currentNode.mass);
+//            sc.add(momentum);
+            sc.divideScalar(frame);
+            //sc.sub(momentum);
+            currentNode.speed.add(sc);
+            var momentum= currentNode.speed.clone();
+            momentum.multiplyScalar(currentNode.mass);
+            momentum.divideScalar(frame);
+            currentNode.speed.sub(momentum);
+            currentNode.obj.position.sub(currentNode.speed);
+        }
+    }
     return{
         init:init,
         add:add,
