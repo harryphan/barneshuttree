@@ -252,11 +252,11 @@ define([],function () {
         }
 
         function doGravity(currentNode, otherNode) {
-            var G=100;
+            var G=10;
             var frame=100000000;
             sc.subVectors(currentNode.obj.position, otherNode.obj.position);
             var len = sc.length();
-            var acc= (otherNode.mass * G) / (len * len);
+            var acc= ( otherNode.mass * G) / (len * len);
             //currentNode.speed.addScalar(acc);
             sc.multiplyScalar((otherNode.mass * G) / (len * len));
             //sc.addScalar(3);
