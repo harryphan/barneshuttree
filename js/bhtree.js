@@ -60,6 +60,9 @@ define([],function () {
 	function saveNode(n){
         nodes.push(n);
     }
+    function saveNode(n){
+        nodes.push(n);
+    }
     function TreeNode(min,max){
         var children = [null,null,null,null,null,null,null,null];
         var leaf = true;
@@ -68,7 +71,7 @@ define([],function () {
         var centerOfMass=null;
         var mass=0;
         var width=Math.abs(min.x-max.x);
-        function addChild(point,id){
+        function addChild(point,id,mass){
 
             var quadrant=getQuadrant(point,box);
             var child=children[quadrant];
@@ -76,18 +79,18 @@ define([],function () {
                 if(child.leaf){
                     var node=new TreeNode(child.box.min,child.box.max);
                     node.leaf=false;
-                    var c1=node.addChild(point,id);
-                    var c2=node.addChild(child.point,child.id);
+                    var c1=node.addChild(point,id,mass);
+                    var c2=node.addChild(child.point,child.id,child.mass);
                     this.mass+=c1.mass;
                     children[quadrant]=node;
                 }else{
-                    var before=child.mass;
-                    child.addChild(point,id);
-                    this.mass+=child.mass-before;
+
+                    child.addChild(point,id,mass);
+                    this.mass+=nodes[id].mass;
                 }
 
             }else{
-                child=createChild(point, quadrant,box,id);
+                child=createChild(point, quadrant,box,id,mass);
                 children[quadrant]=child;
                 this.leaf=false;
                 this.mass+=child.mass;
@@ -104,7 +107,7 @@ define([],function () {
 
             return children[quadrant];
         }
-        function createChild(point,quadrant,bbox,id){
+        function createChild(point,quadrant,bbox,id,mass){
             var center = {
                 x:(bbox.min.x + bbox.max.x)/2.0,
                 y:(bbox.min.y + bbox.max.y)/2.0,
@@ -147,7 +150,7 @@ define([],function () {
             var child=new TreeNode(min,max);
             child.point=point;
             child.centerOfMass=point;
-            child.mass=1;
+            child.mass=mass;
             child.id=id;
             saveNode(child);
             return child;
@@ -208,8 +211,8 @@ define([],function () {
     function init(min,max){
         bhRoot=new TreeNode(min,max);
     }
-    function add(point,id){
-        bhRoot.addChild(point,id);
+    function add(point,id,mass){
+        bhRoot.addChild(point,id,mass);
     }
     function clear(){
         bhRoot={};
