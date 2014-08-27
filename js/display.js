@@ -1,9 +1,11 @@
-define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function($,THREE,bhtree){
+
+define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls','parallel'],function($,THREE,bhtree){
 
     var camera, scene, renderer,parent, controls,whole,
         projector, teams, mouse = { x: 0, y: 0 }, INTERSECTED,rotate=true;
     var v = new THREE.Vector3();
     var nodes = [];
+    var tmpNodes=[];
     var size=10
     $(document).bind('doForce',function(evt, data){
         doForce(data.n,data.node);
@@ -15,6 +17,13 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
         var mat = new THREE.MeshBasicMaterial( { wireframe: false, color:new THREE.Color( 0xaaaaaa ) } ) ;
         var mesh = new THREE.Mesh(cube, mat);
         return mesh;
+    }
+    function constructSprite(){
+        var mapC = THREE.ImageUtils.loadTexture( "particle.png" );
+        var material = new THREE.SpriteMaterial( { map: mapC, color: 0xFFFFFF , transparent:true, blending: THREE.AdditiveBlending} );
+        var sprite = new THREE.Sprite( material );
+        sprite.scale.set(10,10,1);
+        return sprite;
     }
 
     function init(myNodes, myEdges) {
@@ -28,21 +37,21 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
 
         scene = new THREE.Scene();
         scene.add(whole);
-        var init=400
-        for(var x=0;x<400;x++){
-            var cube=constructCube();
-            cube.position.x = Math.random()*500*(Math.pow(-1,Math.floor(1+Math.random()*2)));
-            cube.position.y = Math.random()*500*(Math.pow(-1,Math.floor(1+Math.random()*2)));
-            cube.position.z = Math.random()*500*(Math.pow(-1,Math.floor(1+Math.random()*2)));
-            nodes.push({obj:cube,mass:init,id:x,speed:new THREE.Vector3(0,0,0)});
+        var init=20
+        for(var x=0;x<100;x++){
+            var cube=constructSprite();
+            cube.position.x = Math.random()*200*(Math.pow(-1,Math.floor(1+Math.random()*2)));
+            cube.position.y = Math.random()*200*(Math.pow(-1,Math.floor(1+Math.random()*2)));
+            cube.position.z = Math.random()*200*(Math.pow(-1,Math.floor(1+Math.random()*2)));
+            nodes.push({obj:cube,mass:init,id:x,speed:new THREE.Vector3(0,0,0),collide:[]});
             scene.add(cube);
-            init=1+Math.random()*400
+            init=1+Math.random()*10
         }
 
 
         renderer = new THREE.WebGLRenderer();
 
-        renderer.setClearColor( 0xf0f0f0 );
+        renderer.setClearColor( 0x000000 );
         renderer.setSize( window.innerWidth, window.innerHeight );
         renderer.domElement.style.position = 'absolute';
         container.append(renderer.domElement);
@@ -83,16 +92,17 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
         if( n.id != node.id) {
             if (n.leaf) {
                 var distance = node.obj.position.distanceTo(new THREE.Vector3(n.point.x, n.point.y, n.point.z));
+
                 doGravity(node, {obj: {position: n.point}, mass: n.mass});
             } else {
-                var distance = node.obj.position.distanceTo(new THREE.Vector3(n.point.x, n.point.y, n.point.z));
-                var theta = n.width() / distance;
+                var distance = node.obj.position.distanceTo(new THREE.Vector3(n.centerOfMass.x, n.centerOfMass.y, n.centerOfMass.z));
+                var theta = n.width / distance;
                 if (theta < .5) {
                     doGravity(node, {obj: {position: n.centerOfMass}, mass: n.mass});
                 } else {
                     for (var j in n.children) {
                         if (n.children[j]) {
-                            doForce(n.children[j], node);
+                            doForce(tmpNodes[n.children[j]], node);
                         }
                     }
                 }
@@ -101,8 +111,8 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
     }
     function doGravity(currentNode, otherNode) {
         var sc=new THREE.Vector3();
-        var G=500;
-        var frame=1000000;
+        var G=50;
+        var frame=100000;
         sc.subVectors(currentNode.obj.position, otherNode.obj.position);
         var len = sc.length();
         var acc= ( otherNode.mass * G) / (len * len);
@@ -120,7 +130,7 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
         momentum.multiplyScalar(currentNode.mass);
         momentum.divideScalar(frame);
         currentNode.speed.sub(momentum);
-        currentNode.obj.position.sub(currentNode.speed);
+        //currentNode.obj.position.sub(currentNode.speed);
     }
 //    function doGravity(currentNode, otherNode) {
 //        var sc=new THREE.Vector3();
@@ -152,6 +162,10 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
 //        currentNode.obj.position.sub(currentNode.speed);
 //    }
     function animate() {
+
+
+
+
         var points=$.map(nodes, function(o) { return o.obj.position })
 
         var bbox=new THREE.Box3().setFromPoints(points);
@@ -161,8 +175,7 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
             bhtree.add(node.obj.position,node.id,node.mass);
         }
         var sc=new THREE.Vector3();
-        var mass=10;
-
+        tmpNodes=bhtree.nodes();
         for(var i in nodes) {
 //            for (var j in nodes){
 //                if(nodes[i]!=nodes[j])
@@ -188,11 +201,20 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
 //                }
 //            }
 
-            if (bhtree.bhRoot()) {
+            if (bhtree.nodes()) {
+
                 //$(document).trigger('doForce',{n:bhtree.bhRoot(),node:node});
-                doForce(bhtree.bhRoot(), node);
+                doForce(tmpNodes[0], node);
             }
         }
+
+        
+        for(var i in nodes){
+            var node=nodes[i];
+            node.obj.position.sub(node.speed);
+            addSegment(node.obj.position,node.id);
+        }
+
 
 //        function doGravity(currentNode, otherNode) {
 //            var G=6.67384e-11;
@@ -226,16 +248,57 @@ define(['jqueryui','THREE','bhTree','Stats','THREE.TrackballControls'],function(
 //        doAttraction(nodes[0],nodes[1]);
 //        doAttraction(nodes[1],nodes[0]);
         requestAnimationFrame( animate );
+//
+//        var t=scene.getObjectByName('t2');
+//        var material = new THREE.LineBasicMaterial({ color: 0x0000ff });
+//        var geometry = new THREE.Geometry();
+//        if(t){
+//            geometry.vertices= t.geometry.vertices;
+//            geometry.vertices.push(nodes[1].obj.position.clone());
+//            if(geometry.vertices.length > 100){
+//                geometry.vertices.shift();
+//            }
+//            scene.remove(t);
+//        }
+//
+//
+//        var line = new THREE.Line( geometry, material );
+//        line.geometry.dynamic=true;
+//        line.name='t2';
+//        scene.add(line);
         render();
         bhtree.clear();
         stats.update();
         controls.update();
     }
-
+    function addSegment(position,id){
+        var t=scene.getObjectByName('line'+id);
+        var material = new THREE.LineBasicMaterial({ color: 0xffffff });
+        var geometry = new THREE.Geometry();
+        if(t){
+            geometry.vertices= t.geometry.vertices;
+            geometry.vertices.push(position.clone());
+            if(geometry.vertices.length > 100){
+                geometry.vertices.shift();
+            }
+            scene.remove(t);
+        }
+        var line = new THREE.Line( geometry, material );
+        line.geometry.dynamic=true;
+        line.name='line'+id;
+        scene.add(line);
+    }
 
 
     function render() {
-      renderer.render( scene, camera );
+
+//        if(nodes[0]){
+//           camera.position.set(nodes[0].obj.position.addScalar(-100));
+ //           camera.lookAt( nodes[0].obj.position );
+//
+//        }
+        renderer.render( scene, camera );
+
     }
 
     return{
